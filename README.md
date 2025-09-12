@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # Simple Flask HelloWorld -> Kubernetes (step-by-step)
 
 ## What is included
@@ -101,3 +102,6 @@ curl http://localhost:8080
 
 ----
 Good luck — agar chaahe to main Jenkinsfile + ArgoCD Application bhi bana ke de sakta hoon.
+=======
+# fullpipeline
+>>>>>>> 2d987bb037012b16fa8ce3f0d045252947932abb
