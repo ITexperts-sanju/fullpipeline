@@ -12,13 +12,33 @@ pipeline {
             steps {
                 echo "Running Python Unit Tests..."
                 sh '''
-                docker run --rm -v $WORKSPACE:/app -w /app python:3.11-slim bash -c "
+                docker run --rm \
+                  -v $WORKSPACE:/app -w /app \
+                  python:3.11-slim bash -c "
                     if [ -f requirements.txt ]; then
                         pip install --no-cache-dir -r requirements.txt
                     fi
+                    pip install --no-cache-dir pytest
                     pytest --maxfail=1 --disable-warnings -q
-                "
+                  "
                 '''
+            }
+        }
+
+        stage('SonarQube Scan') {
+            steps {
+                echo "Running SonarQube Analysis..."
+                withCredentials([string(credentialsId: 'sonar_token', variable: 'SONAR_TOKEN')]) {
+                    sh '''
+                    docker run --rm \
+                      -e SONAR_HOST_URL=http://host.docker.internal:9000 \
+                      -v $WORKSPACE:/usr/src \
+                      sonarsource/sonar-scanner-cli \
+                        -Dsonar.projectKey=myapp \
+                        -Dsonar.sources=. \
+                        -Dsonar.login=$SONAR_TOKEN
+                    '''
+                }
             }
         }
 
@@ -39,23 +59,6 @@ pipeline {
                   -v $WORKSPACE:/project \
                   aquasec/trivy image $REGISTRY/$APP_NAME:${BUILD_NUMBER} --severity HIGH,CRITICAL
                 '''
-            }
-        }
-
-        stage('SonarQube Scan') {
-            steps {
-                echo "Running SonarQube Analysis..."
-                withCredentials([string(credentialsId: 'sonar_token', variable: 'SONAR_TOKEN')]) {
-                    sh """
-                    docker run --rm \
-                      -e SONAR_HOST_URL=http://host.docker.internal:9000 \
-                      -v $WORKSPACE:/usr/src \
-                      sonarsource/sonar-scanner-cli \
-                        -Dsonar.projectKey=myapp \
-                        -Dsonar.sources=. \
-                        -Dsonar.login=$SONAR_TOKEN
-                    """
-                }
             }
         }
 
