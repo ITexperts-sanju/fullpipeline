@@ -20,7 +20,7 @@ pipeline {
                         pip install --no-cache-dir -r requirements.txt
                     fi
                     pip install --no-cache-dir pytest
-                    pytest tests/ --maxfail=1 --disable-warnings -q
+                    pytest ./tests --maxfail=1 --disable-warnings -q
                   "
                 '''
             }
@@ -107,18 +107,3 @@ EOF
                             fi
 
                             sed -i "s|image:.*|image: $REGISTRY/$APP_NAME:${BUILD_NUMBER}|" gitops/k8s/deployment.yaml
-
-                            cd gitops
-                            git config user.name "jenkins"
-                            git config user.email "jenkins@example.com"
-                            git add .
-                            git commit -m "Update image to build ${BUILD_NUMBER}" || echo "No changes to commit"
-                            git push https://ITexperts-sanju:${GHCR_PAT}@github.com/ITexperts-sanju/fullpipeline.git
-                        '''
-                    }
-                }
-            }
-        }
-
-    }
-}
