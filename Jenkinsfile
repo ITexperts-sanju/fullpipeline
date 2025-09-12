@@ -23,10 +23,11 @@ pipeline {
                 docker run --rm \
                   -v /var/run/docker.sock:/var/run/docker.sock \
                   -v $PWD:/project \
-                  aquasec/trivy image ${IMAGE_NAME}
+                  aquasec/trivy image $REGISTRY/$APP_NAME:${BUILD_NUMBER} --severity HIGH,CRITICAL
                 '''
+            }
+        } // <-- Trivy stage closed properly
 
-        
         stage('Push Docker Image') {
             steps {
                 withCredentials([string(credentialsId: 'ghcr_pat', variable: 'GHCR_PAT')]) {
@@ -45,7 +46,6 @@ pipeline {
                             echo "Cloning GitOps repo..."
                             git clone $GITOPS_REPO gitops
 
-                            # Create k8s folder & default deployment.yaml if missing
                             mkdir -p gitops/k8s
                             if [ ! -f gitops/k8s/deployment.yaml ]; then
                                 cat <<EOF > gitops/k8s/deployment.yaml
@@ -71,10 +71,8 @@ spec:
 EOF
                             fi
 
-                            # Update image tag
                             sed -i "s|image:.*|image: $REGISTRY/$APP_NAME:${BUILD_NUMBER}|" gitops/k8s/deployment.yaml
 
-                            # Commit & push
                             cd gitops
                             git config user.name "jenkins"
                             git config user.email "jenkins@example.com"
