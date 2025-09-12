@@ -22,7 +22,7 @@ pipeline {
                 sh '''
                 docker run --rm \
                   -v /var/run/docker.sock:/var/run/docker.sock \
-                  -v $PWD:/project \
+                  -v $WORKSPACE:/project \
                   aquasec/trivy image $REGISTRY/$APP_NAME:${BUILD_NUMBER} --severity HIGH,CRITICAL
                 '''
             }
@@ -34,13 +34,13 @@ pipeline {
                 withCredentials([string(credentialsId: 'sonar_token', variable: 'SONAR_TOKEN')]) {
                     sh '''
                     docker run --rm \
-                      -e SONAR_HOST_URL="http://host.docker.internal:9000" \
-                      -e SONAR_LOGIN="${SONAR_TOKEN}" \
-                      -v $PWD:/usr/src \
+                      -e SONAR_HOST_URL=http://host.docker.internal:9000 \
+                      -e SONAR_LOGIN=$SONAR_TOKEN \
+                      -v $WORKSPACE:/usr/src \
                       sonarsource/sonar-scanner-cli \
-                  -Dsonar.projectKey=myapp \
-                  -Dsonar.sources=.
-            '''
+                        -Dsonar.projectKey=myapp \
+                        -Dsonar.sources=.
+                    '''
                 }
             }
         }
