@@ -8,6 +8,7 @@ pipeline {
     }
 
     stages {
+
         stage('Unit Tests') {
             steps {
                 echo "Running Python Unit Tests..."
@@ -19,7 +20,7 @@ pipeline {
                         pip install --no-cache-dir -r requirements.txt
                     fi
                     pip install --no-cache-dir pytest
-                    pytest --maxfail=1 --disable-warnings -q
+                    pytest tests/ --maxfail=1 --disable-warnings -q
                   "
                 '''
             }
@@ -118,5 +119,6 @@ EOF
                 }
             }
         }
+
     }
 }
