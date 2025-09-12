@@ -12,7 +12,12 @@ pipeline {
             steps {
                 echo "Running Python Unit Tests..."
                 sh '''
-                docker run --rm -v $WORKSPACE:/app -w /app python:3.11-slim bash -c "pip install -r requirements.txt && pytest --maxfail=1 --disable-warnings -q"
+                docker run --rm -v $WORKSPACE:/app -w /app python:3.11-slim bash -c "
+                    if [ -f requirements.txt ]; then
+                        pip install --no-cache-dir -r requirements.txt
+                    fi
+                    pytest --maxfail=1 --disable-warnings -q
+                "
                 '''
             }
         }
