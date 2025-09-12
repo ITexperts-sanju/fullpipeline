@@ -1,9 +1,9 @@
-def add(a, b):
-    return a + b
+from app import add, multiply
 
-def multiply(a, b):
-    return a * b
+def test_add():
+    assert add(2, 3) == 5
+    assert add(-1, 1) == 0
 
-if __name__ == "__main__":
-    print("2 + 3 =", add(2, 3))
-    print("2 * 3 =", multiply(2, 3))
+def test_multiply():
+    assert multiply(2, 3) == 6
+    assert multiply(0, 10) == 0
