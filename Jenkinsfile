@@ -11,12 +11,9 @@ pipeline {
         stage('Unit Tests') {
             steps {
                 echo "Running Python Unit Tests..."
-                dir("$WORKSPACE") {
-                    sh '''
-                    pip install -r requirements.txt
-                    pytest --maxfail=1 --disable-warnings -q
-                    '''
-                }
+                sh '''
+                docker run --rm -v $WORKSPACE:/app -w /app python:3.11-slim bash -c "pip install -r requirements.txt && pytest --maxfail=1 --disable-warnings -q"
+                '''
             }
         }
 
@@ -96,7 +93,7 @@ spec:
       - name: myapp
         image: $REGISTRY/$APP_NAME:latest
         ports:
-        - containerPort: 8080
+        - containerPort: 80
 EOF
                             fi
 
