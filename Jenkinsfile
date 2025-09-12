@@ -2,21 +2,16 @@ pipeline {
     agent any
 
     environment {
-        REGISTRY = "ghcr.io/itexperts-sanju"
-        APP_NAME = "myapp"
+        REGISTRY = "ghcr.io/itexperts-sanju"  // GitHub Container Registry namespace
+        APP_NAME = "myapp"                     // Image/app name
+        GITOPS_REPO = "https://github.com/ITexperts-sanju/fullpipeline.git"
     }
 
     stages {
-        stage('Checkout Repo') {
-            steps {
-                git url: 'https://github.com/ITexperts-sanju/fullpipeline.git', branch: 'main'
-            }
-        }
-
         stage('Build Docker Image') {
             steps {
                 script {
-                    sh 'docker build -t $REGISTRY/$APP_NAME:${BUILD_NUMBER} .'
+                    sh "docker build -t $REGISTRY/$APP_NAME:${BUILD_NUMBER} ."
                 }
             }
         }
@@ -24,10 +19,10 @@ pipeline {
         stage('Push Docker Image') {
             steps {
                 withCredentials([string(credentialsId: 'ghcr_pat', variable: 'GHCR_PAT')]) {
-                    sh '''
+                    sh """
                         echo $GHCR_PAT | docker login ghcr.io -u ITexperts-sanju --password-stdin
                         docker push $REGISTRY/$APP_NAME:${BUILD_NUMBER}
-                    '''
+                    """
                 }
             }
         }
@@ -36,25 +31,24 @@ pipeline {
             steps {
                 withCredentials([string(credentialsId: 'ghcr_pat', variable: 'GHCR_PAT')]) {
                     script {
-                        // Clone GitOps repo
-                        sh '''
-                          rm -rf gitops
-                          echo "Cloning GitOps repo..."
-                          git clone https://ITexperts-sanju:${GHCR_PAT}@github.com/ITexperts-sanju/fullpipeline.git gitops
-                        '''
+                        // Clean old clone
+                        sh "rm -rf ${WORKSPACE}/gitops"
+                        
+                        echo "Cloning GitOps repo..."
+                        sh "git clone https://ITexperts-sanju:${GHCR_PAT}@github.com/ITexperts-sanju/fullpipeline.git ${WORKSPACE}/gitops"
 
-                        // Check if deployment.yaml exists
-                        def deploymentFile = "gitops/k8s/deployment.yaml"
+                        def deploymentFile = "${WORKSPACE}/gitops/k8s/deployment.yaml"
+
                         if (fileExists(deploymentFile)) {
-                            echo "Updating deployment.yaml..."
+                            echo "Updating deployment.yaml with new image..."
                             sh """
-                              sed -i 's|image:.*|image: $REGISTRY/$APP_NAME:${BUILD_NUMBER}|' ${deploymentFile}
-                              cd gitops
-                              git config user.name "jenkins"
-                              git config user.email "jenkins@example.com"
-                              git add .
-                              git commit -m "Update image to build ${BUILD_NUMBER}"
-                              git push origin main
+                                sed -i 's|image:.*|image: $REGISTRY/$APP_NAME:${BUILD_NUMBER}|' ${deploymentFile}
+                                cd ${WORKSPACE}/gitops
+                                git config user.name "jenkins"
+                                git config user.email "jenkins@example.com"
+                                git add .
+                                git commit -m "Update image to build ${BUILD_NUMBER}"
+                                git push origin main
                             """
                         } else {
                             error "deployment.yaml not found at ${deploymentFile}. Check repo structure."
