@@ -28,19 +28,23 @@ pipeline {
             }
         }
 
-        stage('SonarQube Scan') {
-            steps {
-                echo "Running SonarQube Analysis..."
-                withCredentials([string(credentialsId: 'sonar_token', variable: 'SONAR_TOKEN')]) {
-                    sh '''
-                    docker run --rm \
-                      -e SONAR_HOST_URL=http://host.docker.internal:9000 \
-                      -e SONAR_LOGIN=$SONAR_TOKEN \
-                      -v $WORKSPACE:/usr/src \
-                      sonarsource/sonar-scanner-cli \
-                        -Dsonar.projectKey=myapp \
-                        -Dsonar.sources=.
-                    '''
+      stage('SonarQube Scan') {
+    steps {
+        echo "Running SonarQube Analysis..."
+        withCredentials([string(credentialsId: 'sonar_token', variable: 'SONAR_TOKEN')]) {
+            sh '''
+            docker run --rm \
+              -e SONAR_HOST_URL=http://host.docker.internal:9000 \
+              -v $WORKSPACE:/usr/src \
+              sonarsource/sonar-scanner-cli \
+                -Dsonar.projectKey=myapp \
+                -Dsonar.sources=. \
+                -Dsonar.login=$SONAR_TOKEN
+            '''
+        }
+    }
+}
+
                 }
             }
         }
