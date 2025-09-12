@@ -16,6 +16,17 @@ pipeline {
             }
         }
 
+        stage('Trivy Vulnerability Scan') {
+            steps {
+                echo "Running Trivy Scan..."
+                sh '''
+                docker run --rm \
+                  -v /var/run/docker.sock:/var/run/docker.sock \
+                  -v $PWD:/project \
+                  aquasec/trivy image ${IMAGE_NAME}
+                '''
+
+        
         stage('Push Docker Image') {
             steps {
                 withCredentials([string(credentialsId: 'ghcr_pat', variable: 'GHCR_PAT')]) {
