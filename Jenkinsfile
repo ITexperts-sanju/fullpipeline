@@ -26,7 +26,22 @@ pipeline {
                   aquasec/trivy image $REGISTRY/$APP_NAME:${BUILD_NUMBER} --severity HIGH,CRITICAL
                 '''
             }
-        } // <-- Trivy stage closed properly
+        }
+
+        stage('SonarQube Scan') {
+            steps {
+                echo "Running SonarQube Analysis..."
+                withCredentials([string(credentialsId: 'sonar_token', variable: 'SONAR_TOKEN')]) {
+                    sh '''
+                    docker run --rm \
+                      -e SONAR_HOST_URL="http://host.docker.internal:9000" \
+                      -e SONAR_LOGIN="${SONAR_TOKEN}" \
+                      -v $PWD:/usr/src \
+                      sonarsource/sonar-scanner-cli
+                    '''
+                }
+            }
+        }
 
         stage('Push Docker Image') {
             steps {
