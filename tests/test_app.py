@@ -1,9 +1,14 @@
-from app import add, multiply
+# tests/test_app.py
+import pytest
+from app import app
 
-def test_add():
-    assert add(2, 3) == 5
-    assert add(-1, 1) == 0
+@pytest.fixture
+def client():
+    with app.test_client() as client:
+        yield client
 
-def test_multiply():
-    assert multiply(2, 3) == 6
-    assert multiply(0, 10) == 0
+def test_home(client):
+    """Test the root endpoint"""
+    response = client.get("/")
+    assert response.status_code == 200
+    assert b"Hello this is out first devops pipeline!" in response.data
