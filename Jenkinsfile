@@ -4,7 +4,7 @@ pipeline {
     environment {
         REGISTRY = "ghcr.io/itexperts-sanju"      // GitHub Container Registry namespace
         APP_NAME = "myapp"                        // Image/app name
-        GITOPS_REPO = "git@github.com:ITexperts-sanju/fullpipeline.git"
+        GITOPS_REPO_HTTPS = "https://ITexperts-sanju:\${GHCR_PAT}@github.com/ITexperts-sanju/fullpipeline.git"
     }
 
     stages {
@@ -27,21 +27,23 @@ pipeline {
 
         stage('Update GitOps Repo') {
             steps {
-                script {
-                    sh '''
-                      rm -rf gitops
-                      git clone $GITOPS_REPO gitops
-                      cd gitops/prod
+                withCredentials([string(credentialsId: 'ghcr_pat', variable: 'GHCR_PAT')]) {
+                    script {
+                        sh '''
+                          rm -rf gitops
+                          git clone $GITOPS_REPO_HTTPS gitops
+                          cd gitops/prod
 
-                      # Update deployment.yaml image tag
-                      sed -i "s|image:.*|image: $REGISTRY/$APP_NAME:${BUILD_NUMBER}|" deployment.yaml
+                          # Update deployment.yaml image tag
+                          sed -i "s|image:.*|image: $REGISTRY/$APP_NAME:${BUILD_NUMBER}|" deployment.yaml
 
-                      git config user.name "jenkins"
-                      git config user.email "jenkins@example.com"
-                      git add .
-                      git commit -m "Update image to build ${BUILD_NUMBER}"
-                      git push origin main
-                    '''
+                          git config user.name "jenkins"
+                          git config user.email "jenkins@example.com"
+                          git add .
+                          git commit -m "Update image to build ${BUILD_NUMBER}"
+                          git push origin main
+                        '''
+                    }
                 }
             }
         }
