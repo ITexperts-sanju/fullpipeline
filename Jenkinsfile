@@ -77,13 +77,13 @@ pipeline {
                 withCredentials([string(credentialsId: 'ghcr_pat', variable: 'GHCR_PAT')]) {
                     script {
                         sh '''
-                            rm -rf gitops
-                            echo "Cloning GitOps repo..."
-                            git clone $GITOPS_REPO gitops
+                        rm -rf gitops
+                        echo "Cloning GitOps repo..."
+                        git clone $GITOPS_REPO gitops
 
-                            mkdir -p gitops/k8s
-                            if [ ! -f gitops/k8s/deployment.yaml ]; then
-                                cat <<EOF > gitops/k8s/deployment.yaml
+                        mkdir -p gitops/k8s
+                        if [ ! -f gitops/k8s/deployment.yaml ]; then
+                            cat <<EOF > gitops/k8s/deployment.yaml
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -104,6 +104,21 @@ spec:
         ports:
         - containerPort: 80
 EOF
-                            fi
+                        fi
 
-                            sed -i "s|image:.*|image: $REGISTRY/$APP_NAME:${BUILD_NUMBER}|" gitops/k8s/deployment.yaml
+                        sed -i "s|image:.*|image: $REGISTRY/$APP_NAME:${BUILD_NUMBER}|" gitops/k8s/deployment.yaml
+
+                        cd gitops
+                        git config user.name "jenkins"
+                        git config user.email "jenkins@example.com"
+                        git add .
+                        git commit -m "Update image to build ${BUILD_NUMBER}" || echo "No changes to commit"
+                        git push https://ITexperts-sanju:${GHCR_PAT}@github.com/ITexperts-sanju/fullpipeline.git
+                        '''
+                    }
+                }
+            }
+        }
+
+    }
+}
