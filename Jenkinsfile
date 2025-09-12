@@ -7,7 +7,6 @@ pipeline {
         GITOPS_REPO = "https://ITexperts-sanju:${GHCR_PAT}@github.com/ITexperts-sanju/fullpipeline.git"
     }
 
-
     stages {
         stage('Unit Tests') {
             steps {
@@ -21,7 +20,6 @@ pipeline {
             }
         }
 
-    stages {
         stage('Build Docker Image') {
             steps {
                 script {
