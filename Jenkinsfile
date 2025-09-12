@@ -7,6 +7,20 @@ pipeline {
         GITOPS_REPO = "https://ITexperts-sanju:${GHCR_PAT}@github.com/ITexperts-sanju/fullpipeline.git"
     }
 
+
+    stages {
+        stage('Unit Tests') {
+            steps {
+                echo "Running Python Unit Tests..."
+                dir('/myapp') {
+                    sh '''
+                    pip install -r requirements.txt
+                    pytest --maxfail=1 --disable-warnings -q
+                    '''
+                }
+            }
+        }
+
     stages {
         stage('Build Docker Image') {
             steps {
