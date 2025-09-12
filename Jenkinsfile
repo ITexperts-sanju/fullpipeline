@@ -2,9 +2,9 @@ pipeline {
     agent any
 
     environment {
-        REGISTRY = "ghcr.io/itexperts-sanju"  // GitHub Container Registry namespace
-        APP_NAME = "myapp"                     // Image/app name
-        GITOPS_REPO = "https://github.com/ITexperts-sanju/fullpipeline.git"
+        REGISTRY = "ghcr.io/itexperts-sanju"
+        APP_NAME = "myapp"
+        GITOPS_REPO = "https://ITexperts-sanju:${GHCR_PAT}@github.com/ITexperts-sanju/fullpipeline.git"
     }
 
     stages {
@@ -19,10 +19,8 @@ pipeline {
         stage('Push Docker Image') {
             steps {
                 withCredentials([string(credentialsId: 'ghcr_pat', variable: 'GHCR_PAT')]) {
-                    sh """
-                        echo $GHCR_PAT | docker login ghcr.io -u ITexperts-sanju --password-stdin
-                        docker push $REGISTRY/$APP_NAME:${BUILD_NUMBER}
-                    """
+                    sh 'echo $GHCR_PAT | docker login ghcr.io -u ITexperts-sanju --password-stdin'
+                    sh "docker push $REGISTRY/$APP_NAME:${BUILD_NUMBER}"
                 }
             }
         }
@@ -31,28 +29,48 @@ pipeline {
             steps {
                 withCredentials([string(credentialsId: 'ghcr_pat', variable: 'GHCR_PAT')]) {
                     script {
-                        // Clean old clone
-                        sh "rm -rf ${WORKSPACE}/gitops"
-                        
-                        echo "Cloning GitOps repo..."
-                        sh "git clone https://ITexperts-sanju:${GHCR_PAT}@github.com/ITexperts-sanju/fullpipeline.git ${WORKSPACE}/gitops"
+                        sh '''
+                            rm -rf gitops
+                            echo "Cloning GitOps repo..."
+                            git clone $GITOPS_REPO gitops
 
-                        def deploymentFile = "${WORKSPACE}/gitops/k8s/deployment.yaml"
+                            # Create k8s folder & default deployment.yaml if missing
+                            mkdir -p gitops/k8s
+                            if [ ! -f gitops/k8s/deployment.yaml ]; then
+                                cat <<EOF > gitops/k8s/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: myapp
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: myapp
+  template:
+    metadata:
+      labels:
+        app: myapp
+    spec:
+      containers:
+      - name: myapp
+        image: $REGISTRY/$APP_NAME:latest
+        ports:
+        - containerPort: 80
+EOF
+                            fi
 
-                        if (fileExists(deploymentFile)) {
-                            echo "Updating deployment.yaml with new image..."
-                            sh """
-                                sed -i 's|image:.*|image: $REGISTRY/$APP_NAME:${BUILD_NUMBER}|' ${deploymentFile}
-                                cd ${WORKSPACE}/gitops
-                                git config user.name "jenkins"
-                                git config user.email "jenkins@example.com"
-                                git add .
-                                git commit -m "Update image to build ${BUILD_NUMBER}"
-                                git push origin main
-                            """
-                        } else {
-                            error "deployment.yaml not found at ${deploymentFile}. Check repo structure."
-                        }
+                            # Update image tag
+                            sed -i "s|image:.*|image: $REGISTRY/$APP_NAME:${BUILD_NUMBER}|" gitops/k8s/deployment.yaml
+
+                            # Commit & push
+                            cd gitops
+                            git config user.name "jenkins"
+                            git config user.email "jenkins@example.com"
+                            git add .
+                            git commit -m "Update image to build ${BUILD_NUMBER}" || echo "No changes to commit"
+                            git push origin main
+                        '''
                     }
                 }
             }
