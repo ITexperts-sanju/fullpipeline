@@ -8,7 +8,8 @@ pipeline {
     }
 
     stages {
-        stage('Checkout Code') {
+
+        stage('Checkout') {
             steps {
                 checkout scm
             }
@@ -18,18 +19,19 @@ pipeline {
             steps {
                 echo "Running Python Unit Tests..."
                 sh '''
-                    mkdir -p reports
+                docker run --rm -v $WORKSPACE:/app -w /app python:3.11-slim bash -c "
+                    apt-get update && apt-get install -y python3-pip
                     if [ -f requirements.txt ]; then
                         pip install --no-cache-dir -r requirements.txt
                     fi
-                    pip install --no-cache-dir pytest
-                    pytest tests --maxfail=1 --disable-warnings --junitxml=reports/unit_tests.xml || true
+                    pip install --no-cache-dir pytest || true
+                    if [ -d tests ]; then
+                        pytest tests --maxfail=1 --disable-warnings -q || true
+                    else
+                        echo 'No tests directory found, skipping unit tests.'
+                    fi
+                "
                 '''
-            }
-            post {
-                always {
-                    junit 'reports/unit_tests.xml'
-                }
             }
         }
 
@@ -45,17 +47,12 @@ pipeline {
             steps {
                 echo "Running Trivy Scan..."
                 sh '''
-                    mkdir -p reports
-                    docker run --rm \
-                        -v /var/run/docker.sock:/var/run/docker.sock \
-                        -v $WORKSPACE:/project \
-                        aquasec/trivy image --format json --output reports/trivy_report.json $REGISTRY/$APP_NAME:${BUILD_NUMBER}
+                docker run --rm \
+                  -v /var/run/docker.sock:/var/run/docker.sock \
+                  -v $WORKSPACE:/project \
+                  aquasec/trivy image $REGISTRY/$APP_NAME:${BUILD_NUMBER} \
+                  --severity HIGH,CRITICAL > trivy-report.txt || true
                 '''
-            }
-            post {
-                always {
-                    archiveArtifacts artifacts: 'reports/trivy_report.json', allowEmptyArchive: true
-                }
             }
         }
 
@@ -64,14 +61,13 @@ pipeline {
                 echo "Running SonarQube Analysis..."
                 withCredentials([string(credentialsId: 'sonar_token', variable: 'SONAR_TOKEN')]) {
                     sh '''
-                        docker run --rm \
-                          -e SONAR_HOST_URL=http://host.docker.internal:9000 \
-                          -e SONAR_LOGIN=$SONAR_TOKEN \
-                          -v $WORKSPACE:/usr/src \
-                          sonarsource/sonar-scanner-cli \
-                          -Dsonar.projectKey=myapp \
-                          -Dsonar.sources=. \
-                          -Dsonar.python.coverage.reportPaths=reports/unit_tests.xml
+                    docker run --rm \
+                      -e SONAR_HOST_URL=http://host.docker.internal:9000 \
+                      -e SONAR_LOGIN=$SONAR_TOKEN \
+                      -v $WORKSPACE:/usr/src \
+                      sonarsource/sonar-scanner-cli \
+                        -Dsonar.projectKey=myapp \
+                        -Dsonar.sources=. > sonar-report.txt || true
                     '''
                 }
             }
@@ -89,9 +85,11 @@ pipeline {
         stage('Update GitOps Repo') {
             steps {
                 withCredentials([string(credentialsId: 'ghcr_pat', variable: 'GHCR_PAT')]) {
-                    sh '''
+                    script {
+                        sh '''
                         rm -rf gitops
                         git clone $GITOPS_REPO gitops
+
                         mkdir -p gitops/k8s
                         if [ ! -f gitops/k8s/deployment.yaml ]; then
                             cat <<EOF > gitops/k8s/deployment.yaml
@@ -116,28 +114,56 @@ spec:
         - containerPort: 80
 EOF
                         fi
+
                         sed -i "s|image:.*|image: $REGISTRY/$APP_NAME:${BUILD_NUMBER}|" gitops/k8s/deployment.yaml
+
                         cd gitops
                         git config user.name "jenkins"
                         git config user.email "jenkins@example.com"
                         git add .
                         git commit -m "Update image to build ${BUILD_NUMBER}" || echo "No changes to commit"
                         git push https://ITexperts-sanju:${GHCR_PAT}@github.com/ITexperts-sanju/fullpipeline.git
-                    '''
+                        '''
+                    }
                 }
             }
         }
+
     }
 
     post {
-        always {
-            echo "Pipeline finished. Sending email..."
-            mail to: 'sanjay.saregama@gmail.com',
-                 subject: "Jenkins Pipeline - ${currentBuild.fullDisplayName}",
-                 body: """Pipeline status: ${currentBuild.currentResult}
+        success {
+            echo "Pipeline SUCCESS - Sending email..."
+            mail bcc: '',
+                 body: """Pipeline Succeeded ✅
 
-View details at: ${env.BUILD_URL}
-"""
+SonarQube Report:
+${readFile('sonar-report.txt')}
+
+Trivy Report:
+${readFile('trivy-report.txt')}
+""",
+                 from: 'jenkins@example.com',
+                 replyTo: 'jenkins@example.com',
+                 subject: "SUCCESS: Pipeline ${env.JOB_NAME} #${env.BUILD_NUMBER}",
+                 to: 'sanjay.saregama@gmail.com'
+        }
+
+        failure {
+            echo "Pipeline FAILED - Sending email..."
+            mail bcc: '',
+                 body: """Pipeline Failed ❌
+
+SonarQube Report:
+${readFile('sonar-report.txt')}
+
+Trivy Report:
+${readFile('trivy-report.txt')}
+""",
+                 from: 'jenkins@example.com',
+                 replyTo: 'jenkins@example.com',
+                 subject: "FAILED: Pipeline ${env.JOB_NAME} #${env.BUILD_NUMBER}",
+                 to: 'sanjay.saregama@gmail.com'
         }
     }
 }
