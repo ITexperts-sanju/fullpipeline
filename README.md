@@ -1,107 +1,99 @@
-<<<<<<< HEAD
-# Simple Flask HelloWorld -> Kubernetes (step-by-step)
+Python CI/CD Pipeline Project 🚀
+This project demonstrates a complete CI/CD pipeline for a Python application, from development in VS Code to deployment in Kubernetes with monitoring. It integrates GitHub, Jenkins, Docker, Trivy, SonarQube, ArgoCD, and Grafana/Prometheus for a full DevOps workflow.
+________________________________________
+Project Overview
+The pipeline automates the following steps:
+1.	Code Development
+o	Python application developed in VS Code.
+o	Code is version-controlled using Git.
+o	Pushed to GitHub repository.
+2.	Continuous Integration (CI)
+o	Jenkins fetches the code from GitHub.
+o	Unit tests are executed automatically.
+o	Static code analysis using SonarQube.
+o	Vulnerability scan using Trivy on the Docker image.
+o	On success, pipeline sends a mail notification
+3.	Docker & Containerization
+o	Jenkins builds a Docker image of the application.
+o	Image pushed to a Docker registry (Docker Hub / private registry).
+4.	Continuous Deployment (CD)
+o	ArgoCD fetches the updated manifests automatically.
+o	Application deployed to Kubernetes cluster.
+o	GitOps principles are used for automated deployment and rollback.
+5.	Monitoring & Observability
+o	Prometheus scrapes metrics from the application and cluster.
+o	Grafana dashboards visualize application performance.
+________________________________________
+Pipeline Diagram 🛠️
+Here’s a high-level overview of the pipeline:
+graph TD
+    A[VS Code] --> B[Git Push to GitHub]
+    B --> C[Jenkins CI/CD]
+    C --> D[Unit Tests]
+    D --> E[Docker Build]
+    E --> F[Trivy Scan]
+    F --> G[SonarQube Scan]
+    G --> H[Push Docker Image to Registry]
+    H --> I[Mail Notification]
+    I --> J[ArgoCD Sync]
+    J --> K[Kubernetes Deployment]
+    K --> L[Monitoring: Grafana & Prometheus]
+________________________________________
+Technologies & Tools
+Stage	Tool/Technology
+Development	Python, VS Code
+Version Control	Git, GitHub
+CI/CD	Jenkins
+Testing	Unit Test (pytest/unittest)
+Security Scan	Trivy
+Code Quality	SonarQube
+Containerization	Docker
+Deployment	Kubernetes, ArgoCD
+Monitoring	Prometheus, Grafana
+Notification	Email via Jenkins
+Setup Instructions
+1. Clone Repository
+git clone https://github.com/<username>/<repository>.git
+cd <repository>
+2. Configure Jenkins
+•	Install required plugins: Git, Docker, Email, SonarQube.
+•	Create a pipeline job:
+o	Checkout GitHub repo.
+o	Run unit tests (pytest or unittest).
+o	Build Docker image and run Trivy scan.
+o	Run SonarQube analysis.
+o	Push Docker image to registry.
+o	Send mail notification on success.
+3. Docker Image
+docker build -t <username>/<app-name>:latest .
+docker push <username>/<app-name>:latest
+4. Kubernetes Deployment with ArgoCD
+•	Add app manifests to GitHub (deployment.yaml, service.yaml).
+•	Configure ArgoCD to sync automatically from GitHub repo.
+•	ArgoCD will deploy and maintain application state in the cluster.
+5. Monitoring
+•	Deploy Prometheus and Grafana.
+•	Add Prometheus scrape configs for the application.
+•	Import Grafana dashboards to visualize metrics.
+________________________________________
+Pipeline Features ✅
+•	Automated unit testing and code quality checks.
+•	Security scanning before deployment (Trivy + SonarQube).
+•	Dockerized deployment for consistency across environments.
+•	GitOps-based deployment via ArgoCD.
+•	Real-time monitoring using Grafana and Prometheus.
+•	Email notifications for build and deployment status.
+________________________________________
+Screenshot / Example Dashboard
 
-## What is included
-- `app.py` : small Flask app that returns "Hello from Kubernetes!"
-- `Dockerfile`
-- `requirements.txt`
-- `k8s/deployment.yaml` and `k8s/service.yaml`
-- `.dockerignore`
-
-## Prerequisites
-- Git, Docker, kubectl
-- Either **minikube** or **kind** (local k8s)
-- VSCode (optional, but recommended)
-- (Optional) A container registry (Docker Hub, GHCR, ECR) if you want to push images
-
-## Quick local test (in VSCode terminal)
-1. Create a virtualenv (optional) and install:
-   ```
-   python -m venv venv
-   source venv/bin/activate   # on PowerShell: venv\Scripts\Activate.ps1
-   pip install -r requirements.txt
-   python app.py
-   ```
-   Visit: http://localhost:8080
-
-## Docker (build & run)
-```
-docker build -t myapp:dev .
-docker run -p 8080:8080 myapp:dev
-curl http://localhost:8080
-```
-
-## Deploy to Kubernetes (minikube) - option A
-1. Start minikube (driver docker):
-   ```
-   minikube start --driver=docker
-   ```
-2. Use minikube's docker daemon so images are available to the cluster:
-   ```
-   eval $(minikube -p minikube docker-env)
-   docker build -t myapp:dev .
-   ```
-3. Apply manifests:
-   ```
-   kubectl apply -f k8s/
-   ```
-4. Expose/test:
-   ```
-   minikube service myapp --url
-   # or
-   kubectl port-forward svc/myapp 8080:80
-   curl http://localhost:8080
-   ```
-
-## Deploy to Kubernetes (kind) - option B
-1. Create cluster:
-   ```
-   kind create cluster
-   ```
-2. Build image and load into kind:
-   ```
-   docker build -t myapp:dev .
-   kind load docker-image myapp:dev --name kind
-   ```
-3. Apply manifests:
-   ```
-   kubectl apply -f k8s/
-   kubectl port-forward svc/myapp 8080:80
-   curl http://localhost:8080
-   ```
-
-## Push image to a registry (if using remote k8s)
-1. Tag & push:
-   ```
-   docker tag myapp:dev ghcr.io/<your-org>/myapp:v1
-   docker push ghcr.io/<your-org>/myapp:v1
-   ```
-2. Update `k8s/deployment.yaml` image field:
-   ```yaml
-   image: ghcr.io/<your-org>/myapp:v1
-   ```
-   Then:
-   ```
-   kubectl apply -f k8s/deployment.yaml
-   ```
-
-## Optional GitOps (ArgoCD) short notes
-1. Install ArgoCD:
-   ```
-   kubectl create namespace argocd
-   kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
-   ```
-2. Create a Git repo with the `k8s/` folder (the GitOps repo).
-3. Create an ArgoCD Application pointing to that repo and path; ArgoCD will sync the manifests.
-
-## Want CI (Jenkins/GitHub Actions)?
-- Let me know and I'll add a sample `Jenkinsfile` / GitHub Actions workflow that:
-  1. builds the image
-  2. pushes to registry
-  3. updates the GitOps repo (or directly applies k8s manifests)
-
-----
-Good luck — agar chaahe to main Jenkinsfile + ArgoCD Application bhi bana ke de sakta hoon.
-=======
-# fullpipeline
->>>>>>> 2d987bb037012b16fa8ce3f0d045252947932abb
+High-level CI/CD pipeline with all stages and integrations.
+________________________________________
+Future Enhancements
+•	Integrate Slack notifications.
+•	Add automated rollback on failure.
+•	Implement multi-environment deployment (dev/stage/prod).
+•	Add load testing with JMeter or Locust.
+________________________________________
+License
+This project is licensed under the MIT License.
+________________________________________
